@@ -2,7 +2,7 @@ import sublime, sublime_plugin, threading, re
 
 class PowerpasteCommand(sublime_plugin.TextCommand):
 	def run(self, edit):
-		self.view.window().show_input_panel('Input a comma delimited list or replacement values', '', lambda s: self.run_replacement(s), None, None)
+		self.view.window().show_input_panel('Input a comma delimited list, a span of numbers, or a single number', '', lambda s: self.run_replacement(s), None, None)
 
 	def run_replacement(self, replace_with):
 		sels = self.view.sel() 
@@ -130,10 +130,33 @@ class PowerpasteApiCall(threading.Thread):
 			self.replace_with = replace_with
 			threading.Thread.__init__(self)
 
+		def tonum(self, str):
+			try:
+				return int(str)
+			except ValueError:
+				return 0
+
 		def run(self):
-			replacements = self.replace_with.split(',')
+			replacements = []
+			if self.replace_with.find(',') != -1:
+				replacements = self.replace_with.split(',')
+			elif self.replace_with.find('-') != -1:
+				replacements = range(
+					self.tonum(
+						self.replace_with[0:self.replace_with.find('-')]
+					), self.tonum(
+						self.replace_with[self.replace_with.find('-')+1:len(self.replace_with)]
+					)
+				)
+			else:
+				replacements = range(self.tonum(self.replace_with))
+
+			print replacements
 			replace_result = []
 			for replace_with_value in replacements:
-				replace_result.append(self.original.replace('[*]', replace_with_value))
+				replace_result.append(self.original.replace('[*]', str(replace_with_value)))
 
-			self.result = '\n'.join(replace_result)
+			if len(replace_result) > 0:
+				self.result = '\n'.join(replace_result)
+			else:
+				self.result = self.original
